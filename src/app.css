@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply w-full py-3 px-4 rounded-lg bg-primary-500 text-white font-medium hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors;
+  }
+  .btn-secondary {
+    @apply w-full py-3 px-4 rounded-lg border border-gray-300 bg-white text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 transition-colors;
+  }
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+  }
+  .card-option {
+    @apply flex flex-col items-center justify-center p-6 rounded-xl border-2 border-gray-200 cursor-pointer transition-all hover:border-primary-300;
+  }
+  .card-option.selected {
+    @apply border-primary-500 bg-primary-50 text-primary-700;
+  }
+
+  /* Home landing (Figma: 1:21869) */
+  .home-font {
+    font-family: 'Urbanist', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji',
+      'Segoe UI Emoji';
+  }
+
+  .home-world-dots {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(17, 24, 39, 0.12) 1.25px, transparent 1.35px);
+    background-size: 14px 14px;
+    opacity: 0.55;
+    transform: translateX(46px) translateY(90px) scale(1.18);
+    /* Rough continent silhouette mask (approximates the Figma dotted map). */
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20600%20300%27%3E%3Crect%20width%3D%27600%27%20height%3D%27300%27%20fill%3D%27black%27/%3E%3Cellipse%20cx%3D%27120%27%20cy%3D%2795%27%20rx%3D%27120%27%20ry%3D%2770%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27220%27%20cy%3D%27150%27%20rx%3D%2780%27%20ry%3D%2760%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27300%27%20cy%3D%27120%27%20rx%3D%27140%27%20ry%3D%2785%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27410%27%20cy%3D%27105%27%20rx%3D%27160%27%20ry%3D%2780%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27470%27%20cy%3D%27200%27%20rx%3D%2790%27%20ry%3D%2760%27%20fill%3D%27white%27/%3E%3C/svg%3E");
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-size: 135% 140%;
+    -webkit-mask-position: center;
+    mask-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20600%20300%27%3E%3Crect%20width%3D%27600%27%20height%3D%27300%27%20fill%3D%27black%27/%3E%3Cellipse%20cx%3D%27120%27%20cy%3D%2795%27%20rx%3D%27120%27%20ry%3D%2770%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27220%27%20cy%3D%27150%27%20rx%3D%2780%27%20ry%3D%2760%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27300%27%20cy%3D%27120%27%20rx%3D%27140%27%20ry%3D%2785%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27410%27%20cy%3D%27105%27%20rx%3D%27160%27%20ry%3D%2780%27%20fill%3D%27white%27/%3E%3Cellipse%20cx%3D%27470%27%20cy%3D%27200%27%20rx%3D%2790%27%20ry%3D%2760%27%20fill%3D%27white%27/%3E%3C/svg%3E");
+    mask-repeat: no-repeat;
+    mask-size: 135% 140%;
+    mask-position: center;
+  }
+
+  .home-transfer-card {
+    @apply bg-white rounded-[14px] border border-[#e9eef4] shadow-sm;
+  }
+
+  .home-input-home {
+    @apply w-full h-[47px] rounded-[8px] border border-[#e1e6ef] bg-white px-[14px] text-[16px] text-[#1d2433] outline-none focus:ring-2 focus:ring-primary-500/40;
+  }
+
+  .home-signup-btn {
+    @apply w-full h-[48px] rounded-[8px] text-white font-semibold text-[16px] flex items-center justify-center bg-gradient-to-r from-[#52b898] to-[#20685f];
+  }
+
+  .welcome-grid-lines::before,
+  .welcome-grid-lines::after {
+    content: '';
+    position: absolute;
+    background: #d5d8dd;
+    pointer-events: none;
+  }
+
+  .welcome-grid-lines::before {
+    width: 1px;
+    height: 320px;
+    left: 50%;
+    top: 0;
+    transform: translateX(-0.5px);
+  }
+
+  .welcome-grid-lines::after {
+    height: 1px;
+    width: 100%;
+    left: 0;
+    top: 225px;
+  }
+}
