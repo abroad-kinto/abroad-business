@@ -3,10 +3,10 @@
   const abroadLogo = 'https://www.figma.com/api/mcp/asset/95c2bfa8-0cae-4190-bac6-13f90c2a39d3';
 
   const cards = [
-    { title: 'Business Information', status: '100% completed', done: true },
-    { title: 'Ownership and Management Structure', status: '100% completed', done: true },
-    { title: 'Regulatory and Compliance', status: '100% completed', done: true },
-    { title: 'Business Activities and Clients', status: '100% completed', done: true }
+    { title: 'Business Information', status: '100% completed', done: true, route: '/kyb-verification' },
+    { title: 'Ownership and Management Structure', status: '100% completed', done: true, route: '/kyb-verification/ownership/saved' },
+    { title: 'Regulatory and Compliance', status: '100% completed', done: true, route: '/kyb-verification/regulatory' },
+    { title: 'Business Activities and Clients', status: '100% completed', done: true, route: '/kyb-verification/business-activities' }
   ];
 </script>
 
@@ -32,7 +32,7 @@
               <h2>{card.title}</h2>
               <span class:ok={card.done}>{card.done ? '◉' : '◌'} {card.status}</span>
             </div>
-            <button type="button" class="confirm-edit">✎ Edit</button>
+            <button type="button" class="confirm-edit" on:click={() => goto(card.route)}>✎ Edit</button>
           </article>
         {/each}
       </div>

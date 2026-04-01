@@ -47,14 +47,9 @@
             Sign Up
           </button>
 
-          <div class="mt-6 w-full flex items-center justify-center gap-2 text-[16px] whitespace-nowrap">
-            <p class="text-[#535862] font-medium">
-              Already have an account?
-            </p>
-            <a href="/login" class="text-[#5c9583] font-semibold hover:underline">
-              Login
-            </a>
-          </div>
+          <p class="mt-6 w-full text-center text-[16px] text-[#535862] font-medium">
+            Continue to start your KYB onboarding flow
+          </p>
         </div>
       </div>
     </section>

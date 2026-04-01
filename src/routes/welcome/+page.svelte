@@ -36,7 +36,7 @@
       </div>
 
       <div class="w-full">
-        <button type="button" class="home-signup-btn" on:click={() => goto('/kyb-verification')}>
+        <button type="button" class="home-signup-btn" on:click={() => goto('/kyb-verification/welcome')}>
           Get Started
         </button>
       </div>
