@@ -1,32 +1,96 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { kybStore } from '$lib/stores/kyb-store';
 
   const abroadLogo = 'https://www.figma.com/api/mcp/asset/9def4654-0a19-4509-9c9e-15fc86e16bd2';
   const uploadIcon = 'https://www.figma.com/api/mcp/asset/88515fa2-4cd9-4235-9a11-bf8286533d74';
 
+  let corporateDocuments = {
+    certificateOfIncorporation: [],
+    articlesOfAssociation: [],
+    corporateTaxCertification: [],
+    proofOfAddress: [],
+  };
+
+  let errors = {};
+
+  kybStore.subscribe((state) => {
+    corporateDocuments = { ...state.corporateDocuments };
+  });
+
   const uploadCards = [
     {
+      key: 'certificateOfIncorporation',
       title: 'Certificate of Incorporation',
       description: 'A copy of the official certificate confirming the legal formation of your company.',
-      hint: 'Upload up to 5 supported files. Max 10 MB per file.'
+      maxFiles: 5,
+      singleFile: false,
     },
     {
-      title: 'Articles of Association or By laws',
+      key: 'articlesOfAssociation',
+      title: 'Articles of Association or Bylaws',
       description: "The document outlining the company's internal governance structure and operational rules.",
-      hint: 'Upload up to 5 supported files. Max 10 MB per file.'
+      maxFiles: 5,
+      singleFile: false,
     },
     {
+      key: 'corporateTaxCertification',
       title: 'Corporate Tax certification',
       description: '',
-      hint: 'Upload up to 5 supported files. Max 10 MB per file.'
+      maxFiles: 5,
+      singleFile: false,
     },
     {
+      key: 'proofOfAddress',
       title: 'Proof of Address of the Company',
-      description:
-        "A recent utility bill, lease agreement, or other official document confirming the company's operating address (issued within the last 3 months).",
-      hint: 'Upload 1 supported file. Max 10 MB.'
-    }
+      description: "A recent utility bill, lease agreement, or other official document confirming the company's operating address (issued within the last 3 months).",
+      maxFiles: 1,
+      singleFile: true,
+    },
   ];
+
+  function handleFiles(cardKey, event) {
+    const input = event.target;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    errors = {};
+    const newFiles = Array.from(files);
+
+    for (const file of newFiles) {
+      if (file.size > 10 * 1024 * 1024) {
+        errors[cardKey] = `File "${file.name}" exceeds 10 MB limit`;
+        return;
+      }
+    }
+
+    const card = uploadCards.find((c) => c.key === cardKey);
+    const current = corporateDocuments[cardKey];
+
+    if (card.singleFile) {
+      corporateDocuments = { ...corporateDocuments, [cardKey]: [newFiles[0]] };
+    } else {
+      const remaining = card.maxFiles - current.length;
+      const toAdd = newFiles.slice(0, remaining);
+      corporateDocuments = { ...corporateDocuments, [cardKey]: [...current, ...toAdd] };
+    }
+  }
+
+  function removeFile(cardKey, index) {
+    corporateDocuments = {
+      ...corporateDocuments,
+      [cardKey]: corporateDocuments[cardKey].filter((_, i) => i !== index),
+    };
+  }
+
+  function handleNext() {
+    kybStore.update((state) => ({
+      ...state,
+      corporateDocuments,
+      progress: { ...state.progress, documents: 100 },
+    }));
+    goto('/kyb-verification/ownership');
+  }
 </script>
 
 <svelte:head>
@@ -83,17 +147,44 @@
               {#if card.description}
                 <p>{card.description}</p>
               {/if}
-              <button type="button" class="kyb-dropzone">
+
+              <label class="kyb-dropzone" class:error={errors[card.key]}>
                 <span class="kyb-dropzone__icon">
                   <img src={uploadIcon} alt="" />
                 </span>
-                <span>{card.hint}</span>
-              </button>
+                {#if corporateDocuments[card.key].length > 0}
+                  <span>{corporateDocuments[card.key].length} file(s) selected</span>
+                {:else}
+                  <span>Upload {card.maxFiles > 1 ? `up to ${card.maxFiles}` : '1'} supported file{card.maxFiles > 1 ? 's' : ''}. Max 10 MB {card.maxFiles > 1 ? 'per file' : ''}.</span>
+                {/if}
+                <input
+                  type="file"
+                  multiple={!card.singleFile}
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  on:change={(e) => handleFiles(card.key, e)}
+                  hidden
+                />
+              </label>
+
+              {#if errors[card.key]}
+                <span class="field-error">{errors[card.key]}</span>
+              {/if}
+
+              {#if corporateDocuments[card.key].length > 0}
+                <div class="kyb-file-list">
+                  {#each corporateDocuments[card.key] as file, index}
+                    <div class="kyb-file-item">
+                      <span class="kyb-file-name">📄 {file.name}</span>
+                      <button type="button" class="kyb-file-remove" on:click={() => removeFile(card.key, index)}>✕</button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </article>
           {/each}
         </div>
 
-        <button type="button" class="home-signup-btn kyb-next" on:click={() => goto('/kyb-verification/ownership')}>
+        <button type="button" class="home-signup-btn kyb-next" on:click={handleNext}>
           Next
         </button>
       </section>
@@ -125,9 +216,15 @@
   .kyb-docs__list { margin-top: 16px; display: flex; flex-direction: column; gap: 20px; }
   .kyb-upload-card h2 { color: #1d2433; font-size: 14px; line-height: 20px; font-weight: 600; }
   .kyb-upload-card p { margin-top: 2px; color: #6a6a6a; font-size: 14px; line-height: 20px; font-weight: 500; }
-  .kyb-dropzone { width: 100%; margin-top: 8px; height: 122px; border: 1px solid #e9eaeb; border-radius: 8px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #535862; font-size: 14px; line-height: 20px; font-weight: 500; }
+  .kyb-dropzone { width: 100%; margin-top: 8px; height: 122px; border: 1px solid #e9eaeb; border-radius: 8px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #535862; font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; }
+  .kyb-dropzone.error { border-color: #f97066; }
   .kyb-dropzone__icon { width: 40px; height: 40px; border-radius: 999px; border: 6px solid #fafafa; background: #f5f5f5; display: grid; place-items: center; }
   .kyb-dropzone__icon img { width: 20px; height: 20px; object-fit: contain; }
+  .field-error { color: #f97066; font-size: 12px; line-height: 16px; margin-top: 4px; display: block; }
+  .kyb-file-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .kyb-file-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: #f5f5f5; border-radius: 6px; font-size: 13px; color: #1d2433; }
+  .kyb-file-name { flex: 1; }
+  .kyb-file-remove { background: none; border: none; color: #f97066; cursor: pointer; font-size: 14px; padding: 0 4px; }
   .kyb-next { width: 100%; margin-top: 24px; }
   @media (max-width: 1080px) { .kyb-layout { flex-direction: column; } .kyb-steps, .kyb-docs { width: 100%; max-width: 496px; } }
 </style>

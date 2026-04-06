@@ -1,6 +1,67 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  const abroadLogo = 'https://www.figma.com/api/mcp/asset/49b67cb8-7fb5-47f5-8031-a7edd63f639e';
+  import { kybStore } from '$lib/stores/kyb-store';
+
+  const abroadLogo = 'https://www.figma.com/api/mcp/asset/49b67cb8-7fb5-47f5-9a11-bf8286533d74';
+
+  let regulatory = {
+    regulatoryPenalties: '',
+    kycFlowDocument: null,
+    originOfFunds: '',
+    amlPolicy: null,
+    licenseRequirement: '',
+    licenseExplanation: '',
+  };
+
+  let errors = {};
+  let submitting = false;
+
+  kybStore.subscribe((state) => {
+    if (state.regulatory.originOfFunds) {
+      regulatory = { ...state.regulatory };
+    }
+  });
+
+  const licenseOptions = [
+    { value: 'yes', label: 'Yes, we have a license' },
+    { value: 'no_partner', label: 'No, we partner with a licensed entity' },
+    { value: 'not_required', label: 'No, license is not required for our activities' },
+  ];
+
+  function handleFileChange(field, event) {
+    const input = event.target;
+    const files = input.files;
+    if (!files || files.length === 0) return;
+
+    const file = files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      errors[field] = `File "${file.name}" exceeds 10 MB limit`;
+      return;
+    }
+
+    errors[field] = '';
+    regulatory = { ...regulatory, [field]: file };
+  }
+
+  function validate() {
+    errors = {};
+    if (!regulatory.originOfFunds.trim()) errors.originOfFunds = 'Origin of funds is required';
+    if (regulatory.originOfFunds.trim().length < 10) errors.originOfFunds = 'Please provide more detail (at least 10 characters)';
+    if (!regulatory.licenseRequirement) errors.licenseRequirement = 'Please select an option';
+    return Object.values(errors).every((e) => !e);
+  }
+
+  function handleNext() {
+    if (!validate()) return;
+    submitting = true;
+    kybStore.update((state) => ({
+      ...state,
+      regulatory,
+      progress: { ...state.progress, regulatory: 100 },
+    }));
+    submitting = false;
+    goto('/kyb-verification/business-activities');
+  }
 </script>
 
 <svelte:head>
@@ -17,9 +78,9 @@
     <section class="kyb-layout">
       <aside class="kyb-steps">
         <div class="kyb-steps__line"></div>
-        <article class="kyb-step kyb-step--active"><h3>Business Details</h3><div class="kyb-step__bar"><span class="kyb-step__bar-full"></span></div><p>100%</p></article>
+        <article class="kyb-step"><h3>Business Details</h3><div class="kyb-step__bar"><span class="kyb-step__bar-full"></span></div><p>100%</p></article>
         <article class="kyb-step"><h3>Ownership &amp; Management Structure</h3><div class="kyb-step__bar"><span class="kyb-step__bar-full"></span></div><p>100%</p></article>
-        <article class="kyb-step"><h3>Regulatory &amp; Compliance</h3><div class="kyb-step__bar"></div><p>0%</p></article>
+        <article class="kyb-step kyb-step--active"><h3>Regulatory &amp; Compliance</h3><div class="kyb-step__bar"></div><p>0%</p></article>
         <article class="kyb-step"><h3>Business Activities &amp; Clients</h3><div class="kyb-step__bar"></div><p>0%</p></article>
       </aside>
 
@@ -28,38 +89,79 @@
 
         <div class="kyb-block">
           <p class="kyb-label">Has the company ever been subject to regulatory penalties or investigations?</p>
-          <textarea rows="4" placeholder="Write a description...."></textarea>
+          <textarea
+            bind:value={regulatory.regulatoryPenalties}
+            rows="4"
+            placeholder="Write a description...."
+          ></textarea>
         </div>
 
         <div class="kyb-block">
           <p class="kyb-label">Do you conduct due diligence on your clients before onboarding?</p>
           <p>Please upload your KYC Flow</p>
-          <button type="button" class="kyb-upload">
-            <span class="kyb-upload__icon">⤴</span>
-            <span>Upload 1 supported file. Max 10 MB.</span>
-          </button>
+          <label class="kyb-upload" class:error={errors.kycFlowDocument}>
+            <span class="kyb-upload__icon">&#x2914;</span>
+            {#if regulatory.kycFlowDocument}
+              <span>File selected: {regulatory.kycFlowDocument.name}</span>
+            {:else}
+              <span>Upload 1 supported file. Max 10 MB.</span>
+            {/if}
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" on:change={(e) => handleFileChange('kycFlowDocument', e)} hidden />
+          </label>
+          {#if errors.kycFlowDocument}
+            <span class="field-error">{errors.kycFlowDocument}</span>
+          {/if}
         </div>
 
         <div class="kyb-block">
-          <p class="kyb-label">What are the Origin sources of funds for your business ?</p>
-          <textarea rows="4" placeholder="Write a description...."></textarea>
+          <p class="kyb-label">What are the Origin sources of funds for your business?</p>
+          <textarea
+            bind:value={regulatory.originOfFunds}
+            rows="4"
+            placeholder="Write a description...."
+            class:error={errors.originOfFunds}
+          ></textarea>
+          {#if errors.originOfFunds}
+            <span class="field-error">{errors.originOfFunds}</span>
+          {/if}
         </div>
 
         <div class="kyb-block">
           <p class="kyb-label">Please attach the AML policy</p>
-          <button type="button" class="kyb-upload">
-            <span class="kyb-upload__icon">⤴</span>
-            <span>Upload 1 supported file. Max 10 MB.</span>
-          </button>
+          <label class="kyb-upload" class:error={errors.amlPolicy}>
+            <span class="kyb-upload__icon">&#x2914;</span>
+            {#if regulatory.amlPolicy}
+              <span>File selected: {regulatory.amlPolicy.name}</span>
+            {:else}
+              <span>Upload 1 supported file. Max 10 MB.</span>
+            {/if}
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" on:change={(e) => handleFileChange('amlPolicy', e)} hidden />
+          </label>
+          {#if errors.amlPolicy}
+            <span class="field-error">{errors.amlPolicy}</span>
+          {/if}
         </div>
 
         <div class="kyb-block">
           <p class="kyb-label">Do you require a license?</p>
           <p>If not, explain why you don't need one and who your licensed partner is.</p>
-          <button type="button" class="kyb-select"><span>Select option</span><span>⌄</span></button>
+          <select
+            bind:value={regulatory.licenseRequirement}
+            class:error={errors.licenseRequirement}
+          >
+            <option value="">Select option</option>
+            {#each licenseOptions as option}
+              <option value={option.value}>{option.label}</option>
+            {/each}
+          </select>
+          {#if errors.licenseRequirement}
+            <span class="field-error">{errors.licenseRequirement}</span>
+          {/if}
         </div>
 
-        <button type="button" class="home-signup-btn kyb-next" on:click={() => goto('/kyb-verification/business-activities')}>Next</button>
+        <button type="button" class="home-signup-btn kyb-next" on:click={handleNext} disabled={submitting}>
+          {submitting ? 'Saving...' : 'Next'}
+        </button>
       </section>
     </section>
   </main>
@@ -86,11 +188,16 @@
   .kyb-form h1 { color: #181d27; font-size: 24px; line-height: 32px; font-weight: 600; }
   .kyb-block { margin-top: 18px; display: flex; flex-direction: column; gap: 8px; }
   .kyb-label { color: #1d2433; font-size: 14px; line-height: 20px; font-weight: 600; }
-  .kyb-block p { color: #6a6a6a; font-size: 14px; line-height: 20px; font-weight: 500; }
+  .kyb-block > p { color: #6a6a6a; font-size: 14px; line-height: 20px; font-weight: 500; }
   textarea { width: 100%; min-height: 116px; border: 1px solid #e1e6ef; border-radius: 8px; padding: 8px 9px; color: #1d2433; font-size: 14px; line-height: 20px; resize: none; }
-  .kyb-upload { width: 100%; height: 122px; border: 1px solid #e9eaeb; border-radius: 8px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #535862; font-size: 14px; line-height: 20px; font-weight: 500; }
+  textarea.error { border-color: #f97066; }
+  select { width: 100%; height: 47px; border: 1px solid #e1e6ef; border-radius: 8px; background: #fff; padding: 0 9px; color: #1d2433; font-size: 16px; line-height: 24px; font-weight: 600; appearance: none; cursor: pointer; }
+  select.error { border-color: #f97066; }
+  .kyb-upload { width: 100%; height: 122px; border: 1px solid #e9eaeb; border-radius: 8px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #535862; font-size: 14px; line-height: 20px; font-weight: 500; cursor: pointer; }
+  .kyb-upload.error { border-color: #f97066; }
   .kyb-upload__icon { width: 40px; height: 40px; border-radius: 50%; border: 6px solid #fafafa; background: #f5f5f5; display: grid; place-items: center; color: #535862; }
-  .kyb-select { width: 100%; height: 47px; border: 1px solid #e1e6ef; border-radius: 8px; background: #fff; padding: 0 9px; display: flex; justify-content: space-between; align-items: center; color: #1d2433; font-size: 16px; line-height: 24px; font-weight: 600; }
   .kyb-next { width: 100%; margin-top: 8px; }
+  .kyb-next:disabled { opacity: 0.6; cursor: not-allowed; }
+  .field-error { color: #f97066; font-size: 12px; line-height: 16px; }
   @media (max-width: 1080px) { .kyb-layout { flex-direction: column; } .kyb-steps, .kyb-form { width: 100%; max-width: 496px; } }
 </style>

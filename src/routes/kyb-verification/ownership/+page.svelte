@@ -1,6 +1,85 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { kybStore } from '$lib/stores/kyb-store';
+
   const abroadLogo = 'https://www.figma.com/api/mcp/asset/c25a1236-046a-4cca-941e-149088562a96';
+
+  let status = 'person';
+  let fullName = '';
+  let role = '';
+  let ownershipPercentage = '';
+  let kycVerificationLink = '';
+  let errors = {};
+
+  const roles = [
+    'Director',
+    'Shareholder',
+    'CEO',
+    'CFO',
+    'Managing Partner',
+    'Authorized Signatory',
+    'UBO (Ultimate Beneficial Owner)',
+  ];
+
+  function generatePersonaLink(name) {
+    const id = Math.random().toString(36).substring(2, 12);
+    return `https://inquiry.withpersona.com/verify?inquiry-id=inq_${id}`;
+  }
+
+  function validate() {
+    errors = {};
+    if (!fullName.trim()) errors.fullName = 'Full name is required';
+    if (!role) errors.role = 'Role is required';
+    if (!ownershipPercentage.trim()) {
+      errors.ownershipPercentage = 'Ownership percentage is required';
+    } else {
+      const num = parseFloat(ownershipPercentage.replace('%', ''));
+      if (isNaN(num) || num <= 0 || num > 100) {
+        errors.ownershipPercentage = 'Must be between 1 and 100';
+      }
+    }
+    return Object.keys(errors).length === 0;
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(kycVerificationLink).catch(() => {});
+  }
+
+  function handleSave() {
+    if (!validate()) return;
+
+    const kycLink = kycVerificationLink || generatePersonaLink(fullName);
+
+    const newPerson = {
+      id: crypto.randomUUID(),
+      status,
+      fullName: fullName.trim(),
+      role,
+      ownershipPercentage: ownershipPercentage.includes('%')
+        ? ownershipPercentage
+        : `${ownershipPercentage}%`,
+      kycVerificationLink: kycLink,
+      kycStatus: 'pending',
+    };
+
+    kycVerificationLink = kycLink;
+
+    kybStore.update((state) => {
+      const updated = [...state.ownership, newPerson];
+      return {
+        ...state,
+        ownership: updated,
+        progress: {
+          ...state.progress,
+          ownership: Math.min(updated.length * 30, 100),
+        },
+      };
+    });
+  }
+
+  function handleNext() {
+    goto('/kyb-verification/ownership/saved');
+  }
 </script>
 
 <svelte:head>
@@ -21,12 +100,12 @@
     <section class="kyb-layout">
       <aside class="kyb-steps">
         <div class="kyb-steps__line"></div>
-        <article class="kyb-step kyb-step--active">
+        <article class="kyb-step">
           <h3>Business Details</h3>
           <div class="kyb-step__bar"><span class="kyb-step__bar-full"></span></div>
           <p>100%</p>
         </article>
-        <article class="kyb-step">
+        <article class="kyb-step kyb-step--active">
           <h3>Ownership &amp; Management Structure</h3>
           <div class="kyb-step__bar"></div>
           <p>0%</p>
@@ -49,53 +128,75 @@
           Enter the details of your directors, shareholders, and UBOs according to your company structure.
         </p>
 
-        <div class="kyb-people kyb-people--expanded">
-          <div class="kyb-person-row">
-            <span class="kyb-person-row__name">Dare Onabanjo</span>
-            <button type="button" class="kyb-person-row__delete" aria-label="Delete individual">🗑</button>
-          </div>
-
+        <div class="kyb-people">
           <div class="kyb-person-card">
             <div class="kyb-grid">
               <label>
                 Status
-                <button type="button" class="kyb-field kyb-field--select">
-                  <span>Person</span>
-                  <span>⌄</span>
-                </button>
+                <select bind:value={status}>
+                  <option value="person">Person</option>
+                  <option value="organization">Organization</option>
+                </select>
               </label>
+
               <label>
                 Full Name
-                <button type="button" class="kyb-field"><span>Dare Onabanjo</span></button>
+                <input
+                  bind:value={fullName}
+                  placeholder="Enter full name"
+                  class:error={errors.fullName}
+                />
+                {#if errors.fullName}
+                  <span class="field-error">{errors.fullName}</span>
+                {/if}
               </label>
+
               <label>
                 Role
-                <button type="button" class="kyb-field kyb-field--select">
-                  <span>Director</span>
-                  <span>⌄</span>
-                </button>
+                <select bind:value={role} class:error={errors.role}>
+                  <option value="">Select role</option>
+                  {#each roles as r}
+                    <option value={r}>{r}</option>
+                  {/each}
+                </select>
+                {#if errors.role}
+                  <span class="field-error">{errors.role}</span>
+                {/if}
               </label>
+
               <label>
                 Ownership Percentage
-                <button type="button" class="kyb-field"><span>2%</span></button>
+                <input
+                  bind:value={ownershipPercentage}
+                  placeholder="e.g. 2%"
+                  class:error={errors.ownershipPercentage}
+                />
+                {#if errors.ownershipPercentage}
+                  <span class="field-error">{errors.ownershipPercentage}</span>
+                {/if}
               </label>
             </div>
 
-            <div class="kyb-kyc">
-              <h3>KYC Verification</h3>
-              <p>Send this link to the individual so they can verify their details.</p>
-              <div class="kyb-kyc__box">
-                <div class="kyc-brand">✱ persona</div>
-                <div class="kyb-kyc__row">
-                  <p>https://inquiry.withpersona.com/verify?inquiry-id=inq_fMT4DQae9cMnsrBkLLhCkfseR5Xd</p>
-                  <button type="button" class="kyb-copy">📋 Copy link</button>
+            {#if kycVerificationLink}
+              <div class="kyb-kyc">
+                <h3>KYC Verification</h3>
+                <p>Send this link to the individual so they can verify their details.</p>
+                <div class="kyb-kyc__box">
+                  <div class="kyc-brand">&#x2731; persona</div>
+                  <div class="kyb-kyc__row">
+                    <p>{kycVerificationLink}</p>
+                    <button type="button" class="kyb-copy" on:click={copyLink}>Copy link</button>
+                  </div>
                 </div>
               </div>
-            </div>
+            {/if}
           </div>
         </div>
 
-        <button type="button" class="kyb-save" on:click={() => goto('/kyb-verification/ownership/saved')}>Save</button>
+        <div class="kyb-actions">
+          <button type="button" class="kyb-btn-secondary" on:click={handleSave}>Save</button>
+          <button type="button" class="kyb-btn-primary" on:click={handleNext}>View all &amp; Continue</button>
+        </div>
       </section>
     </section>
   </main>
@@ -117,22 +218,23 @@
   .kyb-step p { margin-top: 5px; color: #a8a8a8; font-size: 14px; line-height: 20px; font-weight: 500; }
   .kyb-step__bar { margin-top: 13px; width: 100%; height: 3px; border-radius: 4px; background: #f2f4f7; }
   .kyb-step__bar span { display: block; width: 143px; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #52b898 0%, #20685f 100%); }
-  .kyb-step__bar .kyb-step__bar-full { width: 311px; }
-  .kyb-steps .kyb-step:nth-child(3) .kyb-step__bar::before { content: ''; display: block; width: 25px; height: 100%; border-radius: 4px; background: linear-gradient(90deg, #52b898 0%, #20685f 100%); }
-  .kyb-steps .kyb-step:nth-child(3) p { color: #52b898; }
+  .kyb-step__bar-full { width: 311px; }
   .kyb-docs { width: 496px; }
   .kyb-docs h1 { color: #181d27; font-size: 24px; line-height: 32px; font-weight: 600; }
   .kyb-docs__intro { margin-top: 10px; color: #6a6a6a; font-size: 14px; line-height: 20px; font-weight: 500; }
-  .kyb-people { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; width: 100%; }
-  .kyb-people--expanded { gap: 8px; }
-  .kyb-person-row { width: 100%; height: 48px; border: 1px solid #e1e6ef; border-radius: 8px; background: #fcfcfc; padding: 12px 15px; display: flex; align-items: center; gap: 8px; }
-  .kyb-person-row__name { flex: 1; color: #1d2433; font-size: 16px; line-height: 24px; font-weight: 600; }
-  .kyb-person-row__delete { border: 0; background: transparent; color: #f97066; font-size: 12px; line-height: 1; padding: 0; }
+  .kyb-people { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; width: 100%; }
   .kyb-person-card { width: 100%; border: 1px solid #f2f4f7; border-radius: 10px; background: #fff; padding: 17px 20px; }
   .kyb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 21px; }
   .kyb-grid label { display: flex; flex-direction: column; gap: 8px; color: #1d2433; font-size: 14px; line-height: 20px; font-weight: 500; }
-  .kyb-field { width: 100%; height: 47px; border: 1px solid #e1e6ef; border-radius: 8px; background: #fff; padding: 0 9px; display: flex; align-items: center; color: #1d2433; font-size: 16px; line-height: 24px; font-weight: 600; }
-  .kyb-field--select { justify-content: space-between; }
+  .kyb-grid input,
+  .kyb-grid select {
+    width: 100%; height: 47px; border: 1px solid #e1e6ef; border-radius: 8px; background: #fff; padding: 0 9px;
+    color: #1d2433; font-size: 16px; line-height: 24px; font-weight: 600;
+  }
+  .kyb-grid select { appearance: none; cursor: pointer; }
+  .kyb-grid input.error,
+  .kyb-grid select.error { border-color: #f97066; }
+  .field-error { color: #f97066; font-size: 12px; line-height: 16px; }
   .kyb-kyc { margin-top: 12px; }
   .kyb-kyc h3 { color: #1d2433; font-size: 14px; line-height: 20px; font-weight: 500; }
   .kyb-kyc p { color: #6a6a6a; font-size: 12px; line-height: 18px; font-weight: 500; }
@@ -140,7 +242,9 @@
   .kyc-brand { color: #202535; font-size: 22px; line-height: 1; font-weight: 700; }
   .kyb-kyc__row { margin-top: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   .kyb-kyc__row p { color: #535862; font-size: 14px; line-height: 20px; font-weight: 600; text-decoration: underline; max-width: 301px; }
-  .kyb-copy { width: 78px; height: 38px; border: 1px solid #f2f4f7; border-radius: 8px; background: #fcfcfc; color: #282828; font-size: 12px; line-height: 18px; font-weight: 600; }
-  .kyb-save { width: 100%; height: 48px; margin-top: 14px; border: 1px solid #f2f4f7; border-radius: 8px; background: #fafafa; color: #1b1b1b; font-size: 16px; line-height: 24px; font-weight: 600; }
+  .kyb-copy { width: 78px; height: 38px; border: 1px solid #f2f4f7; border-radius: 8px; background: #fcfcfc; color: #282828; font-size: 12px; line-height: 18px; font-weight: 600; cursor: pointer; }
+  .kyb-actions { display: flex; gap: 12px; margin-top: 14px; flex-direction: column; }
+  .kyb-btn-primary { width: 100%; height: 48px; border: 0; border-radius: 8px; background: linear-gradient(90deg, #52b898 0%, #20685f 100%); color: #fff; font-size: 16px; line-height: 24px; font-weight: 600; cursor: pointer; }
+  .kyb-btn-secondary { width: 100%; height: 48px; border: 1px solid #f2f4f7; border-radius: 8px; background: #fafafa; color: #1b1b1b; font-size: 16px; line-height: 24px; font-weight: 600; cursor: pointer; order: -1; }
   @media (max-width: 1080px) { .kyb-layout { flex-direction: column; } .kyb-steps, .kyb-docs { width: 100%; max-width: 496px; } }
 </style>
